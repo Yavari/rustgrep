@@ -11,6 +11,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         },
     };
 
+    println!("{}", config);
+
     let mut builder = rustgrep::path(&config.path);
 
     for item in config.exclude_paths {
@@ -18,6 +20,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     }
 
     let files = builder.get_files()?;
+
+    println!("Start search!");
 
     let matches = search(files, config.query)?;
     for m in matches {

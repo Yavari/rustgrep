@@ -2,8 +2,9 @@ use std::{
     collections::HashMap,
     error,
     ffi::{OsStr, OsString},
-    fs::{self, DirEntry},
+    fs::{self}, path::PathBuf,
 };
+
 
 pub fn path(path: &str) -> PathBuilder {
     PathBuilder {
@@ -23,7 +24,7 @@ impl PathBuilder {
         self
     }
 
-    pub fn get_files(self) -> Result<Vec<DirEntry>, Box<dyn error::Error>> {
+    pub fn get_files(self) -> Result<Vec<PathBuf>, Box<dyn error::Error>> {
         get_files_inner(&self.path, &self.exclude_paths)
     }
 }
@@ -31,16 +32,16 @@ impl PathBuilder {
 fn get_files_inner(
     path: &OsString,
     exclude_paths: &HashMap<OsString, bool>,
-) -> Result<Vec<DirEntry>, Box<dyn error::Error>> {
+) -> Result<Vec<PathBuf>, Box<dyn error::Error>> {
     let result = fs::read_dir(path)?
         .filter(|x| x.is_ok())
         .map(|x| x.unwrap())
         .filter(|x| !x.path().is_dir() || exclude_paths.get(&x.file_name()) == None);
 
-    let mut files: Vec<DirEntry> = Vec::new();
+    let mut files: Vec<PathBuf> = Vec::new();
     for item in result {
         if !item.path().is_dir() {
-            files.push(item);
+            files.push(item.path());
         } else {
             let folder_path = create_path(path, &item.file_name());
             files.append(&mut get_files_inner(&folder_path, exclude_paths)?);

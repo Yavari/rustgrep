@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub struct Config {
     pub query: String,
     pub path: String,
@@ -23,8 +25,8 @@ impl Config {
 
         if let Some(mut path) = args.next() {
             if let Some(query) = args.next() {
-                if !path.ends_with("/") {
-                    path.push_str("/");
+                if !path.ends_with('/') {
+                    path.push('/');
                 }
 
                 for arg in args {
@@ -38,7 +40,6 @@ impl Config {
                                     }
                                 }
                             }
-                            
                         }
                         Mode::Argument(t) => match t {
                             ArgumentTypes::ExcludePath => {
@@ -70,5 +71,15 @@ impl Config {
             query: "self".to_string(),
             exclude_paths: exclude_paths.map(|x| x.to_string()).to_vec(),
         }
+    }
+}
+
+impl fmt::Display for Config {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Path: {}", self.path)?;
+        writeln!(f, "Query: {}", self.query)?;
+        writeln!(f, "exclude_paths: {}", self.exclude_paths.join(", "))?;
+        writeln!(f, "")?;
+        Ok(())
     }
 }

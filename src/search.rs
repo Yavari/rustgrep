@@ -1,7 +1,7 @@
 use std::{
     error,
-    fs::{DirEntry, File},
-    io::{BufRead, BufReader},
+    fs::{File},
+    io::{BufRead, BufReader}, path::PathBuf,
 };
 
 pub struct SearchResult {
@@ -12,12 +12,12 @@ pub struct SearchResult {
 }
 
 pub fn search(
-    files: Vec<DirEntry>,
+    files: Vec<PathBuf>,
     query: String,
 ) -> Result<Vec<SearchResult>, Box<dyn error::Error>> {
     let mut result = Vec::new();
     for path in files {
-        let file = File::open(&path.path())?;
+        let file = File::open(&path)?;
         let reader = BufReader::new(file);
         reader
             .lines()
@@ -25,7 +25,7 @@ pub fn search(
             .enumerate()
             .for_each(|(line, content)| {
                 if content.contains(&query) {
-                    if let Some(x) = path.path().to_str() {
+                    if let Some(x) = path.to_str() {
                         let start_index = get_start_index(&content, &query);
                         if let Some(si) = start_index {
                             result.push(SearchResult {
@@ -50,10 +50,10 @@ fn get_start_index(content: &str, query: &str) -> Option<usize> {
 
     for (index, char) in content.chars().enumerate() {
         if char == query[temp] {
-            if temp < length - 1 {
+            if temp < length -1 {
                 temp += 1;
             } else {
-                return Some(index - length + 1);
+                return Some(index + 1 - length);
             }
         } else {
             temp = 0;
