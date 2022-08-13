@@ -1,4 +1,4 @@
-use rustgrep::{search, Config};
+use rustgrep::{search, Config, get_builder_from_config};
 use std::{env, error};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
@@ -8,18 +8,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             println!("{}", e);
             println!("Using default config.");
             Config::default()
-        },
+        }
     };
 
     println!("{}", config);
 
-    let mut builder = rustgrep::path(&config.path);
-
-    for item in config.exclude_paths {
-        builder = builder.exclude_folder(item);
-    }
-
-    let files = builder.get_files()?;
+    let files = get_builder_from_config(config.path, config.exclude_paths).get_files()?;
 
     println!("Start search!");
 

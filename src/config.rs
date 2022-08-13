@@ -79,7 +79,7 @@ impl fmt::Display for Config {
         writeln!(f, "Path: {}", self.path)?;
         writeln!(f, "Query: {}", self.query)?;
         writeln!(f, "exclude_paths: {}", self.exclude_paths.join(", "))?;
-        writeln!(f, "")?;
+        writeln!(f)?;
         Ok(())
     }
 }

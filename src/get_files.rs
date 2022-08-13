@@ -5,8 +5,7 @@ use std::{
     fs::{self}, path::PathBuf,
 };
 
-
-pub fn path(path: &str) -> PathBuilder {
+pub fn path(path: String) -> PathBuilder {
     PathBuilder {
         path: path.into(),
         exclude_paths: HashMap::new(),
