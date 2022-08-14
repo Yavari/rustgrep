@@ -2,13 +2,15 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
-    thread,
+    sync::mpsc::{self, Receiver, Sender},
+    thread::{self, JoinHandle},
 };
 
 use crate::config::SearchConfig;
 pub struct SearchResult {
-    pub results: Vec<SearchItemResult>,
-    pub errors: Vec<String>,
+    pub rx: Receiver<Vec<SearchItemResult>>,
+    pub error_rx: Receiver<String>,
+    pub tasks: Vec<JoinHandle<()>>,
 }
 
 pub struct SearchItemResult {
@@ -19,28 +21,22 @@ pub struct SearchItemResult {
 }
 
 pub fn search(files: Vec<PathBuf>, search_options: SearchConfig) -> SearchResult {
-    let threads = files.into_iter().map(|path| {
-        let query = search_options.query.to_string();
-        thread::spawn(move || search_file(&path, &query, search_options.preview))
-    });
-
-    let mut search_results = Vec::new();
-    let mut errors = Vec::new();
-    for thread in threads {
-        let result = thread.join().unwrap();
-        match result {
-            Ok(x) => {
-                for item in x {
-                    search_results.push(item);
-                }
-            }
-            Err(x) => errors.push(x),
-        }
-    }
+    let (tx, rx) = mpsc::channel();
+    let (error_tx, error_rx) = mpsc::channel();
+    let threads = files
+        .into_iter()
+        .map(|path| {
+            let query = search_options.query.to_string();
+            let tx = tx.clone();
+            let error_tx = error_tx.clone();
+            thread::spawn(move || search_file(&path, &query, search_options.preview, tx, error_tx))
+        })
+        .collect();
 
     SearchResult {
-        results: search_results,
-        errors: Vec::new(),
+        rx,
+        error_rx,
+        tasks: threads,
     }
 }
 
@@ -48,42 +44,45 @@ fn search_file(
     path: &PathBuf,
     query: &String,
     preview: Option<usize>,
-) -> Result<Vec<SearchItemResult>, String> {
-    let mut result = Vec::new();
+    tx: Sender<Vec<SearchItemResult>>,
+    error_tx: Sender<String>,
+) {
     let file = File::open(&path);
     match file {
         Ok(file) => {
             let reader = BufReader::new(file);
-            reader
-                .lines()
-                .flatten()
-                .enumerate()
-                .for_each(|(line, content)| {
-                    if content.contains(query) {
-                        if let Some(x) = path.to_str() {
-                            let start_index = get_start_index(&content, query);
-                            if let Some(si) = start_index {
-                                let content = get_content_preview(&content, preview, si, query);
-
-                                result.push(SearchItemResult {
-                                    path: x.into(),
-                                    content: content.trim().to_string(),
-                                    line: line + 1,
-                                    column: si + 1,
-                                });
-                            }
+            let mut items = Vec::new();
+            for (line, content) in reader.lines().flatten().enumerate() {
+                if content.contains(query) {
+                    if let Some(x) = path.to_str() {
+                        let start_index = get_start_index(&content, query);
+                        if let Some(si) = start_index {
+                            let content = get_content_preview(&content, preview, si, query);
+                            items.push(SearchItemResult {
+                                path: x.into(),
+                                content: content.trim().to_string(),
+                                line: line + 1,
+                                column: si + 1,
+                            });
                         }
                     }
-                });
+                }
+            }
 
-            Ok(result)
+            let r = tx.send(items);
+
+            if r.is_err() {
+            }
         }
-        Err(err) => Err(format!(
-            "Could not read file {}: {}",
-            path.to_str().unwrap_or(""),
-            err
-        )),
-    }
+        Err(err) => {
+            let message = format!(
+                "Could not read file {}: {}",
+                path.to_str().unwrap_or(""),
+                err);
+            if error_tx.send(message).is_err() {
+            }
+        }
+    };
 }
 
 fn get_content_preview<'a>(

@@ -1,5 +1,5 @@
 use rustgrep::{get_builder_from_config, search, Config};
-use std::{env, error};
+use std::{env, error, thread};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let config = match Config::build(env::args()) {
@@ -17,9 +17,27 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     println!("Start search!");
 
-    let results = search(file_result.files, config.search_config);
-    for m in results.results {
-        println!("{} {}:{}\t{}", m.path, m.line, m.column, m.content)
+    let result = search(file_result.files, config.search_config);
+
+    thread::spawn(|| {
+        for file in result.rx {
+            for item in file{
+                println!(
+                    "{} {}:{}\t{}",
+                    item.path, item.line, item.column, item.content
+                )
+            }
+        }
+    });
+
+    thread::spawn(|| {
+        for item in result.error_rx {
+            eprintln!("ERROR! {}", item)
+        }
+    });
+
+    for item in result.tasks {
+        item.join().unwrap();
     }
 
     if !file_result.errors.is_empty() {
@@ -28,14 +46,6 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             eprintln!("{}", m)
         }
     }
-
-    if !results.errors.is_empty() {
-        eprintln!("Some errors:");
-        for m in results.errors {
-            eprintln!("{}", m)
-        }
-    }
-
 
     Ok(())
 }
