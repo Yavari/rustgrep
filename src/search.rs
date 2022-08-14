@@ -6,6 +6,8 @@ use std::{
     thread,
 };
 
+use crate::config::SearchConfig;
+
 pub struct SearchResult {
     pub path: String,
     pub content: String,
@@ -15,10 +17,10 @@ pub struct SearchResult {
 
 pub fn search(
     files: Vec<PathBuf>,
-    query: String,
+    search_options: SearchConfig,
 ) -> Result<Vec<SearchResult>, Box<dyn error::Error>> {
     let threads = files.into_iter().map(|path| {
-        let a = query.to_string();
+        let query = search_options.query.to_string();
         thread::spawn(move || {
             let mut result = Vec::new();
             let file = File::open(&path);
@@ -29,11 +31,17 @@ pub fn search(
                     .flatten()
                     .enumerate()
                     .for_each(|(line, content)| {
-                        if content.contains(&a) {
+                        if content.contains(&query) {
                             if let Some(x) = path.to_str() {
-                                let start_index = get_start_index(&content, &a);
-                                println!("{}", x);
+                                let start_index = get_start_index(&content, &query);
                                 if let Some(si) = start_index {
+                                    let content = get_content_preview(
+                                        &content,
+                                        search_options.preview,
+                                        si,
+                                        &query,
+                                    );
+
                                     result.push(SearchResult {
                                         path: x.into(),
                                         content: content.trim().to_string(),
@@ -59,6 +67,25 @@ pub fn search(
     }
 
     Ok(search_results)
+}
+
+fn get_content_preview<'a>(
+    content: &'a String,
+    preview: Option<usize>,
+    si: usize,
+    query: &String,
+) -> &'a str {
+    if let Some(length) = preview {
+        if si > length && si + query.len() + length < content.len() {
+            return &content[si - length..si + query.len() + length];
+        } else if si > length {
+            return &content[si - length..];
+        } else if si + query.len() + length < content.len() {
+            return &content[..si + query.len() + length];
+        }
+    }
+
+    content
 }
 
 fn get_start_index(content: &str, query: &str) -> Option<usize> {

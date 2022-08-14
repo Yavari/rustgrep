@@ -13,12 +13,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     println!("{}", config);
 
-    let files =
-        get_builder_from_config(config.path, config.exclude_paths, config.file_types).get_files();
+    let files = get_builder_from_config(config.file_config).get_files();
 
     println!("Start search!");
 
-    let matches = search(files, config.query)?;
+    let matches = search(files, config.search_config)?;
     for m in matches {
         println!("{} {}:{}\t{}", m.path, m.line, m.column, m.content)
     }
