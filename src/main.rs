@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     println!("{}", config);
 
-    let files = get_builder_from_config(config.path, config.exclude_paths).get_files()?;
+    let files = get_builder_from_config(config.path, config.exclude_paths).get_files();
 
     println!("Start search!");
 

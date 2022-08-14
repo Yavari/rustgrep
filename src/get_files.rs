@@ -1,8 +1,9 @@
 use std::{
     collections::HashMap,
-    error,
     ffi::{OsStr, OsString},
-    fs::{self}, path::PathBuf,
+    fs::{self},
+    path::PathBuf,
+    thread,
 };
 
 pub fn path(path: String) -> PathBuilder {
@@ -23,31 +24,43 @@ impl PathBuilder {
         self
     }
 
-    pub fn get_files(self) -> Result<Vec<PathBuf>, Box<dyn error::Error>> {
+    pub fn get_files(self) -> Vec<PathBuf> {
         get_files_inner(&self.path, &self.exclude_paths)
     }
 }
 
-fn get_files_inner(
-    path: &OsString,
-    exclude_paths: &HashMap<OsString, bool>,
-) -> Result<Vec<PathBuf>, Box<dyn error::Error>> {
-    let result = fs::read_dir(path)?
-        .filter(|x| x.is_ok())
-        .map(|x| x.unwrap())
-        .filter(|x| !x.path().is_dir() || exclude_paths.get(&x.file_name()) == None);
-
+fn get_files_inner(path: &OsString, exclude_paths: &HashMap<OsString, bool>) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
-    for item in result {
-        if !item.path().is_dir() {
-            files.push(item.path());
-        } else {
-            let folder_path = create_path(path, &item.file_name());
-            files.append(&mut get_files_inner(&folder_path, exclude_paths)?);
+    let result = fs::read_dir(path);
+    if let Ok(result) = result {
+        let result = result.filter(|x| x.is_ok())
+            .map(|x| x.unwrap())
+            .filter(|x| !x.path().is_dir() || exclude_paths.get(&x.file_name()) == None);
+
+        let mut threads = Vec::new();
+        for item in result {
+            if !item.path().is_dir() {
+                files.push(item.path());
+            } else {
+                let folder_path = create_path(path, &item.file_name());
+                let a = exclude_paths.clone();
+                let handle = thread::spawn(move || {
+                    get_files_inner(&folder_path, &a)
+                });
+
+                threads.push(handle);
+            }
+        }
+
+        for handle in threads {
+            let result = handle.join().unwrap();
+            for item in result {
+                files.push(item);
+            }
         }
     }
 
-    Ok(files)
+    files
 }
 
 fn create_path(prefix: &OsStr, folder: &OsStr) -> OsString {
