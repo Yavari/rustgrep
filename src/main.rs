@@ -1,4 +1,4 @@
-use rustgrep::{search, Config, get_builder_from_config};
+use rustgrep::{get_builder_from_config, search, Config};
 use std::{env, error};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
@@ -13,7 +13,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     println!("{}", config);
 
-    let files = get_builder_from_config(config.path, config.exclude_paths).get_files();
+    let files =
+        get_builder_from_config(config.path, config.exclude_paths, config.file_types).get_files();
 
     println!("Start search!");
 
