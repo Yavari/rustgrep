@@ -10,14 +10,14 @@ pub fn path(path: String) -> PathBuilder {
     PathBuilder {
         path: path.into(),
         exclude_paths: HashMap::new(),
-        file_types: HashMap::new(),
+        file_types: None,
     }
 }
 
 pub struct PathBuilder {
     path: OsString,
     exclude_paths: HashMap<OsString, bool>,
-    file_types: HashMap<String, bool>,
+    file_types: Option<HashMap<String, bool>>,
 }
 
 impl PathBuilder {
@@ -27,7 +27,14 @@ impl PathBuilder {
     }
 
     pub fn filter_file_type(mut self, file_type: String) -> PathBuilder {
-        self.file_types.insert(file_type, true);
+        if self.file_types.is_none() {
+            self.file_types = Some(HashMap::new());
+        }
+
+        if let Some(ref mut file_types) = self.file_types {
+            file_types.insert(file_type, true);
+        }
+
         self
     }
 
@@ -39,7 +46,7 @@ impl PathBuilder {
 fn get_files_inner(
     path: &OsString,
     exclude_paths: &HashMap<OsString, bool>,
-    file_types: &HashMap<String, bool>,
+    file_types: &Option<HashMap<String, bool>>,
 ) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
     let result = fs::read_dir(path);
@@ -52,14 +59,17 @@ fn get_files_inner(
         let mut threads = Vec::new();
         for item in result {
             if !item.path().is_dir() {
-                if file_types.is_empty() {
-                    files.push(item.path());
-                } else if let Some(filename) = item.file_name().to_str() {
-                    if let Some(file_extension) = filename.split('.').last() {
-                        if file_types.contains_key(file_extension) {
-                            files.push(item.path());
+                match file_types {
+                    Some(file_types) => {
+                        if let Some(filename) = item.file_name().to_str() {
+                            if let Some(file_extension) = filename.split('.').last() {
+                                if file_types.contains_key(file_extension) {
+                                    files.push(item.path());
+                                }
+                            }
                         }
                     }
+                    None => files.push(item.path()),
                 }
             } else {
                 let folder_path = create_path(path, &item.file_name());

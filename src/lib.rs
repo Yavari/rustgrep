@@ -13,8 +13,10 @@ pub fn get_builder_from_config(file_config: FileConfig) -> PathBuilder {
         builder = builder.exclude_folder(item);
     }
 
-    for item in file_config.file_types {
-        builder = builder.filter_file_type(item);
+    if let Some(file_types) = file_config.file_types {
+        for item in file_types {
+            builder = builder.filter_file_type(item);
+        }
     }
 
     builder

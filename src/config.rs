@@ -13,7 +13,7 @@ pub struct SearchConfig {
 pub struct FileConfig {
     pub path: String,
     pub exclude_paths: Vec<String>,
-    pub file_types: Vec<String>,
+    pub file_types: Option<Vec<String>>,
 }
 
 #[allow(dead_code)]
@@ -64,16 +64,20 @@ impl Config {
                     }
                 }
 
-                let c = Config {
+                let config = Config {
                     search_config: SearchConfig { query, preview },
                     file_config: FileConfig {
                         path,
                         exclude_paths,
-                        file_types,
+                        file_types: if file_types.is_empty() {
+                            None
+                        } else {
+                            Some(file_types)
+                        },
                     },
                 };
 
-                return Ok(c);
+                return Ok(config);
             }
         }
 
@@ -90,7 +94,7 @@ impl Config {
             file_config: FileConfig {
                 path: "./".to_string(),
                 exclude_paths: exclude_paths.map(|x| x.to_string()).to_vec(),
-                file_types: Vec::new(),
+                file_types: None,
             },
         }
     }
@@ -106,10 +110,8 @@ impl fmt::Display for Config {
             self.file_config.exclude_paths.join(", ")
         )?;
 
-        if self.file_config.file_types.is_empty() {
-            writeln!(f, "fileTypes: All Files")?;
-        } else {
-            writeln!(f, "fileTypes: {}", self.file_config.file_types.join(", "))?;
+        if let Some(file_types) = &self.file_config.file_types {
+            writeln!(f, "fileTypes: {}", file_types.join(", "))?;
         }
 
         if let Some(preview) = self.search_config.preview {
