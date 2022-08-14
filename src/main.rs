@@ -13,14 +13,29 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     println!("{}", config);
 
-    let files = get_builder_from_config(config.file_config).get_files();
+    let file_result = get_builder_from_config(config.file_config).get_files();
 
     println!("Start search!");
 
-    let matches = search(files, config.search_config)?;
-    for m in matches {
+    let results = search(file_result.files, config.search_config);
+    for m in results.results {
         println!("{} {}:{}\t{}", m.path, m.line, m.column, m.content)
     }
+
+    if !file_result.errors.is_empty() {
+        eprintln!("Some errors:");
+        for m in file_result.errors {
+            eprintln!("{}", m)
+        }
+    }
+
+    if !results.errors.is_empty() {
+        eprintln!("Some errors:");
+        for m in results.errors {
+            eprintln!("{}", m)
+        }
+    }
+
 
     Ok(())
 }
