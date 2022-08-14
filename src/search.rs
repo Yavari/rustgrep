@@ -2,16 +2,11 @@ use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::Sender,
     thread::{self, JoinHandle},
 };
 
 use crate::config::SearchConfig;
-pub struct SearchResult {
-    pub rx: Receiver<Vec<SearchItemResult>>,
-    pub error_rx: Receiver<String>,
-    pub tasks: Vec<JoinHandle<()>>,
-}
 
 pub struct SearchItemResult {
     pub path: String,
@@ -20,10 +15,8 @@ pub struct SearchItemResult {
     pub column: usize,
 }
 
-pub fn search(files: Vec<PathBuf>, search_options: SearchConfig) -> SearchResult {
-    let (tx, rx) = mpsc::channel();
-    let (error_tx, error_rx) = mpsc::channel();
-    let threads = files
+pub fn search(files: Vec<PathBuf>, search_options: SearchConfig, tx: Sender<Vec<SearchItemResult>>, error_tx: Sender<String>) {
+    let threads: Vec<JoinHandle<()>> = files
         .into_iter()
         .map(|path| {
             let query = search_options.query.to_string();
@@ -33,10 +26,8 @@ pub fn search(files: Vec<PathBuf>, search_options: SearchConfig) -> SearchResult
         })
         .collect();
 
-    SearchResult {
-        rx,
-        error_rx,
-        tasks: threads,
+    for thread in threads {
+        thread.join().unwrap();
     }
 }
 

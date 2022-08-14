@@ -1,5 +1,5 @@
-use rustgrep::{get_builder_from_config, search, Config};
-use std::{env, error, thread};
+use rustgrep::{get_builder_from_config, search, Config, SearchItemResult};
+use std::{env, error, sync::mpsc::{Sender, Receiver, channel}, thread};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let config = match Config::build(env::args()) {
@@ -17,11 +17,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     println!("Start search!");
 
-    let result = search(file_result.files, config.search_config);
-
+    let (tx, rx): (Sender<Vec<SearchItemResult>>, Receiver<Vec<SearchItemResult>>) = channel();
+    let (error_tx, error_rx): (Sender<String>, Receiver<String>) = channel();
     thread::spawn(|| {
-        for file in result.rx {
-            for item in file{
+        for file in rx {
+            for item in file {
                 println!(
                     "{} {}:{}\t{}",
                     item.path, item.line, item.column, item.content
@@ -31,14 +31,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     });
 
     thread::spawn(|| {
-        for item in result.error_rx {
+        for item in error_rx {
             eprintln!("ERROR! {}", item)
         }
     });
 
-    for item in result.tasks {
-        item.join().unwrap();
-    }
+    search(file_result.files, config.search_config, tx, error_tx);
 
     if !file_result.errors.is_empty() {
         eprintln!("Some errors:");

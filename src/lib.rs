@@ -6,6 +6,7 @@ pub use config::Config;
 use config::FileConfig;
 pub use get_files::PathBuilder;
 pub use search::search;
+pub use search::SearchItemResult;
 
 pub fn get_builder_from_config(file_config: FileConfig) -> PathBuilder {
     let mut builder = get_files::path(file_config.path);
