@@ -1,7 +1,8 @@
+#![warn(clippy::pedantic)]
 use rustgrep::{get_builder_from_config, search, Config, SearchItemResult};
-use std::{env, error, sync::mpsc::{Sender, Receiver, channel}, thread};
+use std::{env, sync::mpsc::{Sender, Receiver, channel}, thread};
 
-fn main() -> Result<(), Box<dyn error::Error>> {
+fn main() {
     let config = match Config::build(env::args()) {
         Ok(x) => x,
         Err(e) => {
@@ -25,14 +26,14 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                 println!(
                     "{} {}:{}\t{}",
                     item.path, item.line, item.column, item.content
-                )
+                );
             }
         }
     });
 
     thread::spawn(|| {
         for item in error_rx {
-            eprintln!("ERROR! {}", item)
+            eprintln!("ERROR! {}", item);
         }
     });
 
@@ -41,9 +42,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     if !file_result.errors.is_empty() {
         eprintln!("Some errors:");
         for m in file_result.errors {
-            eprintln!("{}", m)
+            eprintln!("{}", m);
         }
     }
-
-    Ok(())
 }
