@@ -8,26 +8,26 @@ use std::{
 
 use crate::config::SearchConfig;
 
-pub struct SearchItemResult {
+pub struct ItemResult {
     pub path: String,
     pub content: String,
     pub line: usize,
     pub column: usize,
 }
 
-pub fn search(files: Vec<PathBuf>, search_options: SearchConfig, tx: Sender<Vec<SearchItemResult>>, error_tx: Sender<String>) {
+pub fn search(files: Vec<PathBuf>, search_options: SearchConfig, tx: &Sender<Vec<ItemResult>>, error_tx: &Sender<String>) {
     let threads: Vec<JoinHandle<()>> = files
         .into_iter()
         .map(|path| {
             let query = search_options.query.to_string();
             let tx = tx.clone();
             let error_tx = error_tx.clone();
-            thread::spawn(move || search_file(&path, &query, search_options.preview, tx, error_tx))
+            thread::spawn(move || search_file(&path, &query, search_options.preview, &tx, &error_tx))
         })
         .collect();
 
     for thread in threads {
-        thread.join().unwrap();
+        thread.join().unwrap_or_default();
     }
 }
 
@@ -35,8 +35,8 @@ fn search_file(
     path: &PathBuf,
     query: &String,
     preview: Option<usize>,
-    tx: Sender<Vec<SearchItemResult>>,
-    error_tx: Sender<String>,
+    tx: &Sender<Vec<ItemResult>>,
+    error_tx: &Sender<String>,
 ) {
     let file = File::open(&path);
     match file {
@@ -49,7 +49,7 @@ fn search_file(
                         let start_index = get_start_index(&content, query);
                         if let Some(si) = start_index {
                             let content = get_content_preview(&content, preview, si, query);
-                            items.push(SearchItemResult {
+                            items.push(ItemResult {
                                 path: x.into(),
                                 content: content.trim().to_string(),
                                 line: line + 1,

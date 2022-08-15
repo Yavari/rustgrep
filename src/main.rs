@@ -1,5 +1,5 @@
 #![warn(clippy::pedantic)]
-use rustgrep::{get_builder_from_config, search, Config, SearchItemResult};
+use rustgrep::{get_builder_from_config, search, Config, ItemResult};
 use std::{env, sync::mpsc::{Sender, Receiver, channel}, thread};
 
 fn main() {
@@ -18,7 +18,7 @@ fn main() {
 
     println!("Start search!");
 
-    let (tx, rx): (Sender<Vec<SearchItemResult>>, Receiver<Vec<SearchItemResult>>) = channel();
+    let (tx, rx): (Sender<Vec<ItemResult>>, Receiver<Vec<ItemResult>>) = channel();
     let (error_tx, error_rx): (Sender<String>, Receiver<String>) = channel();
     thread::spawn(|| {
         for file in rx {
@@ -37,7 +37,7 @@ fn main() {
         }
     });
 
-    search(file_result.files, config.search_config, tx, error_tx);
+    search(file_result.files, config.search_config, &tx, &error_tx);
 
     if !file_result.errors.is_empty() {
         eprintln!("Some errors:");

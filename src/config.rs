@@ -1,5 +1,6 @@
-use std::fmt;
+use std::{fmt, string};
 
+#[must_use]
 pub struct Config {
     pub search_config: SearchConfig,
     pub file_config: FileConfig,
@@ -93,7 +94,7 @@ impl Config {
             },
             file_config: FileConfig {
                 path: "./".to_string(),
-                exclude_paths: exclude_paths.map(|x| x.to_string()).to_vec(),
+                exclude_paths: exclude_paths.map(string::ToString::to_string).to_vec(),
                 file_types: None,
             },
         }

@@ -19,6 +19,7 @@ pub struct FileResult {
     pub errors: Vec<String>,
 }
 
+#[must_use]
 pub struct PathBuilder {
     path: OsString,
     exclude_paths: HashMap<OsString, bool>,
@@ -43,6 +44,7 @@ impl PathBuilder {
         self
     }
 
+    #[must_use]
     pub fn get_files(self) -> FileResult {
         let (files, errors) = get_files_inner(&self.path, &self.exclude_paths, &self.file_types);
         FileResult { files, errors }
@@ -60,13 +62,22 @@ fn get_files_inner(
     match result {
         Ok(result) => {
             let result = result
-                .filter(|x| x.is_ok())
-                .map(|x| x.unwrap())
+                .filter(Result::is_ok)
+                .map(Result::unwrap)
                 .filter(|x| !x.path().is_dir() || exclude_paths.get(&x.file_name()) == None);
 
             let mut threads = Vec::new();
             for item in result {
-                if !item.path().is_dir() {
+                if item.path().is_dir() {
+                    let folder_path = create_path(path, &item.file_name());
+                    let exclude_paths = exclude_paths.clone();
+                    let file_types = file_types.clone();
+                    let handle = thread::spawn(move || {
+                        get_files_inner(&folder_path, &exclude_paths, &file_types)
+                    });
+
+                    threads.push(handle);
+                } else {
                     match file_types {
                         Some(file_types) => {
                             if let Some(filename) = item.file_name().to_str() {
@@ -79,15 +90,6 @@ fn get_files_inner(
                         }
                         None => files.push(item.path()),
                     }
-                } else {
-                    let folder_path = create_path(path, &item.file_name());
-                    let exclude_paths = exclude_paths.clone();
-                    let file_types = file_types.clone();
-                    let handle = thread::spawn(move || {
-                        get_files_inner(&folder_path, &exclude_paths, &file_types)
-                    });
-
-                    threads.push(handle);
                 }
             }
 
